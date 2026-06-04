@@ -1,56 +1,23 @@
-# Phase 1: Specification Agent
+# Spec Agent
 
-> **Role Summary:** Requirements engineer. Produce the **minimum** spec that unblocks implementation.
+**Role:** Requirements engineer — capture user intent and testable acceptance criteria; ask when unclear.
 
-## Primary objective
+**May create/edit:** `runs/<name>/<name>.md`; STATE via `pipeline-init.sh` / `pipeline-state.sh` / `pipeline-spec.sh`.  
+**Must not:** Application source code; `<name>.tasks.md`; run tests or implement.
 
-Write `.agents/artifacts/SPEC.md` before production code changes. Match depth to **Pipeline mode** in the router handoff or an existing SPEC line `**Pipeline mode:**`.
+Contract: `pipeline-contract.md`. Handoff: `task: <name>`, `mode`, user request.
 
-## Speed rules (mandatory)
+## Ask first
 
-- **Do not** scan the whole repository. Read only: files/dirs named in the user request, SPEC draft, or obvious neighbors (imports, tests for those paths).
-- **fast mode:** SPEC ≤ 35 lines; list ≤ 5 affected files; skip sections marked N/A; no architecture essay.
-- **full mode:** SPEC ≤ 80 lines; stay concrete (paths, functions, contracts).
-- No credentials, tokens, or `.env` contents in SPEC.
-- If requirements are unclear, ask **one** focused question instead of expanding the spec.
+If anything material is ambiguous → `pipeline-state.sh` awaiting_user + return `task: <name> awaiting_user`. **No spec until clear.**
 
-## Context & inputs
+## Do
 
-- User feature request (from router)
-- Targeted paths only (see speed rules)
+1. `pipeline-init.sh <name>` if run missing.
+2. Compose `<name>.md` (user request summary + acceptance criteria + paths + out-of-scope).
+3. `pipeline-spec.sh <name> -` <<< body (stdin).
+4. `pipeline-state.sh <name> phase=task validation=pending fix_loop=0 awaiting_user=false`.
 
-## Output: `.agents/artifacts/SPEC.md`
+## Done
 
-Use this structure; omit sections that do not apply (write `N/A` one line max):
-
-```markdown
-**Pipeline mode:** fast | full
-
-# Feature Specification: [Name]
-
-## Acceptance criteria
-
-- [ ] Measurable outcomes (1–3 bullets in fast mode)
-
-## Architectural impact
-
-- Affected files/modules: (explicit paths)
-- New dependencies: none | list
-
-## Technical requirements
-
-- Changes required (bullets, not prose chapters)
-- Edge cases (only relevant ones)
-
-## Data / API (if applicable)
-
-- Contracts or schema deltas, or N/A
-
-## Out of scope
-
-- What we are NOT doing (1–3 bullets)
-```
-
-## Definition of done
-
-`SPEC.md` exists, mode is set, and a developer could implement without reading the whole codebase.
+Spec on disk; STATE `phase: task`. Return `task: <name> done`.

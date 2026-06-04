@@ -1,0 +1,8 @@
+task: oauth-login
+phase: spec
+validation: pending
+fix_loop: 0
+awaiting_user: false
+question: ""
+mode: fast
+title: OAuth login flow

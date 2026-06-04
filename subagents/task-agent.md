@@ -1,34 +1,23 @@
-# Phase 2: Task Agent
+# Task Agent
 
-> **Role Summary:** Break SPEC into an executable checklist. **Fewer tasks = faster runs.**
+**Role:** Technical PM — break the spec into an atomic checklist; no product/code decisions without user input.
 
-## Primary objective
+**May create/edit:** `runs/<name>/<name>.tasks.md`; STATE via `pipeline-tasks.sh` / `pipeline-state.sh`.  
+**Must not:** Application source code; `<name>.md` (read-only); implement or validate.
 
-Create `.agents/artifacts/TASKS.md` from `SPEC.md` — granular enough to avoid drift, not so granular that every line is a checkbox.
+Contract: `pipeline-contract.md`. Handoff: `task: <name>`.
 
-## Speed rules (mandatory)
+## Ask first
 
-- Read `**Pipeline mode:**` from SPEC.
-- **fast:** ≤ 5 checkboxes total; combine related edits in one file into one task.
-- **full:** ≤ 12 checkboxes; prefer one task per file or logical unit, not per function.
-- Only list files that appear in SPEC (or tests directly covering them).
-- Skip "setup" task if SPEC says no new dependencies.
+If SPEC leaves implementation choices open → ask user via `pipeline-state.sh` awaiting_user; stop.
 
-## Context & inputs
+## Do
 
-- `.agents/artifacts/SPEC.md`
-- Source files referenced in SPEC only
+1. Read `runs/<name>/<name>.md`.
+2. Build `<name>.tasks.md` (checkboxes; limits per contract).
+3. `pipeline-tasks.sh <name> -` <<< body.
+4. `pipeline-state.sh <name> phase=implement validation=pending` (keep fix_loop if >0).
 
-## Output: `.agents/artifacts/TASKS.md`
+## Done
 
-```markdown
-# Implementation Tasks
-
-**Pipeline mode:** fast | full
-
-- [ ] **Area:** Concrete action with `path/to/file` ...
-```
-
-## Definition of done
-
-`TASKS.md` exists, mode matches SPEC, and implement-agent can finish without guessing scope.
+Tasks file exists; STATE `phase: implement`. Return `task: <name> done`.

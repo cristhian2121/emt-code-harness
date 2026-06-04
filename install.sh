@@ -17,9 +17,9 @@ for arg in "$@"; do
       echo "Usage: $0 [--agents-only] [TARGET_DIR]"
       echo ""
       echo "  TARGET_DIR   Project root (default: current directory)"
-      echo "  --agents-only   Copy only the 5 agents under .agents/agents/ (skip AGENTS.md)"
+      echo "  --agents-only   Copy only agents under .agents/agents/ (skip AGENTS.md)"
       echo ""
-      echo "Creates .agents/agents/ and .agents/artifacts/ if missing."
+      echo "Creates .agents/agents/, .agents/scripts/, .agents/artifacts/runs/ if missing."
       echo "Replaces harness files with the same name; does not delete other files."
       exit 0
       ;;
@@ -53,6 +53,7 @@ if [ ! -d "$SOURCE_AGENTS" ]; then
 fi
 
 AGENT_FILES="
+pipeline-contract.md
 team-router.md
 spec-agent.md
 task-agent.md
@@ -60,9 +61,19 @@ implement-agent.md
 validate-agent.md
 "
 
-mkdir -p "${TARGET_DIR}/.agents/agents" "${TARGET_DIR}/.agents/artifacts"
+mkdir -p "${TARGET_DIR}/.agents/agents" "${TARGET_DIR}/.agents/scripts" "${TARGET_DIR}/.agents/artifacts/runs"
 
 echo "Installing harness into: ${TARGET_DIR}"
+
+if [ -d "${SCRIPT_DIR}/scripts" ]; then
+  for s in "${SCRIPT_DIR}"/scripts/pipeline-*.sh; do
+    [ -f "$s" ] || continue
+    base=$(basename "$s")
+    cp -f "$s" "${TARGET_DIR}/.agents/scripts/${base}"
+    chmod +x "${TARGET_DIR}/.agents/scripts/${base}"
+    echo "  updated .agents/scripts/${base}"
+  done
+fi
 
 for f in $AGENT_FILES; do
   src="${SOURCE_AGENTS}/${f}"
@@ -86,4 +97,6 @@ else
 fi
 
 echo "Done. Agents: ${TARGET_DIR}/.agents/agents/"
-echo "       Artifacts: ${TARGET_DIR}/.agents/artifacts/"
+echo "       Registry:  ${TARGET_DIR}/.agents/artifacts/REGISTRY.md (created by pipeline)"
+echo "       Scripts:   ${TARGET_DIR}/.agents/scripts/pipeline-*.sh"
+echo "       Runs:      ${TARGET_DIR}/.agents/artifacts/runs/<name>/<name>.md"

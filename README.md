@@ -1,6 +1,6 @@
 # emt-code-harness
 
-Plantilla de workflow SDLC con agentes para **Cursor**. Cada repositorio decide si la instala o no; no es global ni obligatoria.
+Plantilla de workflow SDLC con agentes para **asistentes de código** (Cursor, Claude Code, Codex, Windsurf, etc.). Cada repositorio decide si la instala; no es global ni obligatoria.
 
 ## Instalación por proyecto (opt-in)
 
@@ -19,26 +19,29 @@ bash install.sh C:/dev/mi-app
 
 El script:
 
-- Crea `.agents/agents/` y `.agents/artifacts/` si no existen.
-- Copia los **5 agentes** a `.agents/agents/` (reemplaza solo archivos con el mismo nombre).
-- Copia `AGENTS.md` a la raíz del proyecto (salvo con `--agents-only`).
+- Crea `.agents/agents/`, `.agents/artifacts/` y `.agents/artifacts/runs/` si no existen.
+- Copia `pipeline-contract.md` + **5 agentes** a `.agents/agents/`.
+- Copia `AGENTS.md` a la raíz (salvo con `--agents-only`).
 
 ```bash
-./install.sh --agents-only /ruta/al/proyecto   # solo los 5 .md, sin AGENTS.md
+./install.sh --agents-only /ruta/al/proyecto
 ./install.sh --help
 ```
 
-Luego en Cursor, confirma que el workspace carga `AGENTS.md` como regla del proyecto.
+### Configuración del agente (cualquier herramienta)
+
+- **Solo `AGENTS.md` en instrucciones globales / siempre activas** del proyecto.
+- Carga bajo demanda `pipeline-contract` y los agentes en `.agents/agents/` al delegar (subagente, @archivo, skill, etc.). No fijes todos los `.md` como reglas permanentes (~4k tokens menos por sesión).
 
 Trabaja siempre en una rama de feature (`feature/<id>-<slug>`), nunca en `main`/`master` con el pipeline activo.
 
-**Repos sin harness:** no ejecutes el instalador. El agente de Cursor se comporta como siempre.
+**Repos sin harness:** no ejecutes el instalador. El agente del IDE se comporta como siempre (solo contexto del repo).
 
 **Actualizar el harness:** vuelve a ejecutar `install.sh` en el proyecto; los archivos del harness se sobrescriben, el resto en `.agents/` se conserva.
 
 ## Verificación rápida
 
-1. Tras `install.sh .`, existen `.agents/agents/` (5 archivos) y `.agents/artifacts/`.
+1. Tras `install.sh .`, existen `pipeline-contract.md` + 5 agentes en `.agents/agents/`.
 2. Un segundo `install.sh` actualiza los `.md` del harness sin borrar otros archivos en esas carpetas.
 3. `AGENTS.md` en la raíz referencia `./.agents/agents/team-router.md`.
 
@@ -56,30 +59,75 @@ Reglas de equipo para ir rápido:
 
 - Pide explícitamente _"rápido"_ o _"solo X archivo"_ cuando aplique.
 - No uses Tier 2 para tareas que caben en una respuesta directa (Tier 1).
-- Commitea `SPEC.md` / `TASKS.md` en el PR solo si aportan revisión; en fast path pueden ser muy cortos.
+- Commitea `runs/<name>/*.md` en el PR si aportan trazabilidad.
 
-## Flujo (pipeline completo)
+## Múltiples tareas con nombre (paralelo)
 
-| Fase | Agente            | Artefacto                    |
-| ---- | ----------------- | ---------------------------- |
-| 1    | `spec-agent`      | `.agents/artifacts/SPEC.md`  |
-| 2    | `task-agent`      | `.agents/artifacts/TASKS.md` |
-| 3    | `implement-agent` | código + `[x]` en TASKS      |
-| 4    | `validate-agent`  | reporte breve                |
+Puedes lanzar **varios agentes** a la vez (features distintas). Cada una tiene un **`name`** único y su propia carpeta:
 
-El `team-router` elige la fase según qué archivos ya existen en `.agents/artifacts/`.
+```
+.agents/scripts/           # pipeline-*.sh (estado/tareas vía CLI)
+.agents/artifacts/
+  REGISTRY.md              # Rebuild: pipeline-registry.sh
+  runs/<name>/
+    STATE.yaml             # phase, validation, fix_loop, awaiting_user
+    <name>.md              # Spec (mismo slug que la tarea)
+    <name>.tasks.md        # Tareas (mismo slug + .tasks.md)
+    <name>.validation.md   # Requirement fit + Technical
+```
+
+**`REGISTRY.md`** — `pipeline-registry.sh` escanea `runs/*/STATE.yaml`.
+
+**Scripts** — los agentes deben usar `.agents/scripts/` para actualizar estado y tareas (menos tokens y menos errores de formato). Ver [COMPLIANCE.md](COMPLIANCE.md).
+
+**Reglas:**
+
+- Gateway pasa `task: <slug>` al router.
+- Agentes solo tocan `runs/<slug>/`; contrato compartido en `pipeline-contract.md`.
+- `active:` en REGISTRY = tarea por defecto.
+
+Ejemplo en paralelo: dos chats → `task: login-api` y `task: fix-footer` en handoffs separados.
+
+## Flujo y estados (por tarea)
+
+El `team-router` reconstruye **`REGISTRY.md`**, elige un `name`, y lee **`runs/<name>/STATE.yaml`**.
+
+| Fase | Agente | `**phase:**` al terminar |
+| ---- | ------ | ------------------------- |
+| 1 | `spec-agent` | `task` |
+| 2 | `task-agent` | `implement` |
+| 3 | `implement-agent` | `validate` |
+| 4 | `validate-agent` | Requirement fit + technical → `validation: done` o `fail` |
+
+| `**validation:**` | Significado |
+| ------------------ | ----------- |
+| `pending` | Pendiente de validar |
+| `done` | OK — esa tarea terminada |
+| `fail` | Error — vuelve a implement si `fix_loop` < máx. (2 fast / 3 full) |
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  spec --> task
+  task --> implement
+  implement --> validate
+  validate --> done: validation done
+  validate --> implement: validation fail
+  implement --> validate: fixed
+```
 
 ## Cuándo usar qué (gateway)
 
 - **Explicaciones, documentación, dudas** → Tier 1.
 - **Cambio pequeño acotado** → Fast path (router + artefactos mínimos).
-- **Feature / refactor grande** → Pipeline completo vía `team-router`.
+- **Implementación difícil** (multi-archivo, feature, API/DB) → Pipeline **full** obligatorio: spec → task → implement → validate (validate puede volver a implement).
+- Si falta información → el agente pregunta (`awaiting_user: true`); no asume.
 
 ## Artefactos y Git
 
-- Ruta: `.agents/artifacts/SPEC.md`, `TASKS.md`.
-- Recomendado: incluirlos en el PR del feature para trazabilidad.
-- **Nuevo feature en la misma rama:** borra o archiva los artefactos anteriores y vuelve a pedir el trabajo.
+- Rutas: `REGISTRY.md` + `runs/<name>/*` (commitear en PR si aporta trazabilidad).
+- **Nueva tarea:** el router registra un `name` nuevo; no borra otras filas del registry.
+- **Legacy:** `STATE.md` / artefactos planos en `artifacts/` → migrar a `runs/default/STATE.yaml`.
 
 ## Estructura
 
@@ -88,7 +136,9 @@ El `team-router` elige la fase según qué archivos ya existen en `.agents/artif
 ```
 install.sh             # Instalador
 AGENTS.md              # Gateway (se copia al destino)
-subagents/             # Fuente de los 5 agentes para install.sh
+subagents/             # agentes (fuente install.sh)
+scripts/               # pipeline-*.sh (fuente install.sh)
+COMPLIANCE.md          # Checklist de cumplimiento
 ```
 
 **Proyecto destino (tras install):**
@@ -96,13 +146,16 @@ subagents/             # Fuente de los 5 agentes para install.sh
 ```
 AGENTS.md
 .agents/
-  agents/              # team-router, spec, task, implement, validate
-  artifacts/           # SPEC.md, TASKS.md en runtime
+  agents/              # pipeline-contract + 5 agentes
+  scripts/             # pipeline-init, state, spec, tasks, validation, registry
+  artifacts/
+    REGISTRY.md
+    runs/<name>/       # STATE.yaml, <name>.md, <name>.tasks.md, ...
 ```
 
 ## Limitaciones
 
-- Requiere Cursor con reglas de workspace que lean `AGENTS.md`.
+- Requiere un agente que lea `AGENTS.md` y pueda delegar a archivos en `.agents/agents/` (mecanismo depende del producto).
 - En Windows nativo (CMD/PowerShell) usa Git Bash o WSL para `install.sh`.
 - La fase de validación ejecuta comandos del proyecto (`lint`, `test`, etc.); no sustituye CI.
 - La velocidad depende del tamaño del pedido: acota el scope en el prompt.
