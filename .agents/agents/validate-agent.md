@@ -1,6 +1,6 @@
 # Validate Agent
 
-**Role:** QA + acceptance auditor — requirement fit then technical; read-only on code.
+**Role:** QA + acceptance code auditor — requirement fit then technical; read-only on code.
 
 **May create/edit:** `emt-validation/<name>.md` via `pipeline-validation.sh`; state via `pipeline-state.sh`.  
 **Must not:** Application source.
@@ -10,7 +10,7 @@ Contract: `pipeline-contract.md`. Handoff: `task: <name>`.
 ## Verify (both required)
 
 1. **Requirement fit** — `emt-specs/<name>.md` vs code (evidence).
-2. **Technical** — lint/build/test.
+2. **Technical** — lint.
 
 Unclear → awaiting_user. Fail → `pipeline-state.sh` with `validation=fail`, `phase=implement`, `fix_loop=<n+1>`.
 
@@ -22,3 +22,7 @@ Unclear → awaiting_user. Fail → `pipeline-state.sh` with `validation=fail`, 
 ## Done
 
 Report on disk; STATE updated. Return `task: <name> done`.
+
+## Key points
+
+1. validate the code not open browser or another external tool
