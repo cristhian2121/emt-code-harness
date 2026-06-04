@@ -1,22 +1,19 @@
 #!/usr/bin/env sh
-# Update STATE.yaml. Usage: pipeline-state.sh <name> key=value [key=value ...]
+# Update emt-state/<name>.yaml
 set -eu
 . "$(dirname "$0")/pipeline-lib.sh"
 
 name=${1:?usage: pipeline-state.sh <name> phase=... validation=...}
 shift
 validate_name "$name"
+ensure_emt_dirs
 
-dir=$(run_dir "$name")
-mkdir -p "$dir"
 sf=$(state_file "$name")
-
 if [ ! -f "$sf" ]; then
-  echo "error: missing STATE — run pipeline-init.sh $name first" >&2
+  echo "error: missing state — run pipeline-init.sh $name first" >&2
   exit 1
 fi
 
-# Read current values (simple grep; YAML is flat key: value)
 get_val() {
   grep "^$1:" "$sf" 2>/dev/null | sed "s/^$1: *//" | head -1
 }
@@ -40,10 +37,7 @@ for arg in "$@"; do
     mode=*) mode=${arg#mode=} ;;
     title=*) title=${arg#title=} ;;
     task=*) task=${arg#task=} ;;
-    *)
-      echo "error: unknown field: $arg" >&2
-      exit 1
-      ;;
+    *) echo "error: unknown field: $arg" >&2; exit 1 ;;
   esac
 done
 
@@ -58,4 +52,4 @@ mode: $mode
 title: $title
 EOF
 
-echo "ok: $name phase=$phase validation=$validation awaiting_user=$awaiting"
+echo "ok: emt-state/$name.yaml phase=$phase validation=$validation awaiting_user=$awaiting"

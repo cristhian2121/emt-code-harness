@@ -4,6 +4,7 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 SOURCE_AGENTS="${SCRIPT_DIR}/subagents"
+SOURCE_SCRIPTS="${SCRIPT_DIR}/scripts"
 
 AGENTS_ONLY=0
 TARGET_DIR=""
@@ -16,11 +17,17 @@ for arg in "$@"; do
     -h|--help)
       echo "Usage: $0 [--agents-only] [TARGET_DIR]"
       echo ""
-      echo "  TARGET_DIR   Project root (default: current directory)"
-      echo "  --agents-only   Copy only agents under .agents/agents/ (skip AGENTS.md)"
+      echo "  TARGET_DIR      Project root (default: .) — same folder as AGENTS.md"
+      echo "  --agents-only   Skip copying AGENTS.md"
       echo ""
-      echo "Creates .agents/agents/, .agents/scripts/, .agents/artifacts/runs/ if missing."
-      echo "Replaces harness files with the same name; does not delete other files."
+      echo "Installs:"
+      echo "  AGENTS.md"
+      echo "  .agents/agents/       (pipeline-contract + 5 phase agents)"
+      echo "  .agents/scripts/      (pipeline-*.sh)"
+      echo "  emt-specs/            (<name>.md)"
+      echo "  emt-tasks/            (<name>.md — same name as spec)"
+      echo "  emt-state/            (<name>.yaml + _meta.yaml for active task)"
+      echo "  emt-validation/       (<name>.md)"
       exit 0
       ;;
     -*)
@@ -48,7 +55,6 @@ TARGET_DIR=$(CDPATH= cd -- "$TARGET_DIR" && pwd)
 
 if [ ! -d "$SOURCE_AGENTS" ]; then
   echo "error: agent source not found: $SOURCE_AGENTS" >&2
-  echo "Run this script from the emt-code-harness repository." >&2
   exit 1
 fi
 
@@ -61,28 +67,60 @@ implement-agent.md
 validate-agent.md
 "
 
-mkdir -p "${TARGET_DIR}/.agents/agents" "${TARGET_DIR}/.agents/scripts" "${TARGET_DIR}/.agents/artifacts/runs"
+REQUIRED_SCRIPTS="
+pipeline-lib.sh
+pipeline-init.sh
+pipeline-meta.sh
+pipeline-state.sh
+pipeline-spec.sh
+pipeline-tasks.sh
+pipeline-validation.sh
+pipeline-list.sh
+"
+
+mkdir -p \
+  "${TARGET_DIR}/.agents/agents" \
+  "${TARGET_DIR}/.agents/scripts" \
+  "${TARGET_DIR}/emt-specs" \
+  "${TARGET_DIR}/emt-tasks" \
+  "${TARGET_DIR}/emt-state" \
+  "${TARGET_DIR}/emt-validation"
 
 echo "Installing harness into: ${TARGET_DIR}"
 
-if [ -d "${SCRIPT_DIR}/scripts" ]; then
-  for s in "${SCRIPT_DIR}"/scripts/pipeline-*.sh; do
-    [ -f "$s" ] || continue
-    base=$(basename "$s")
-    cp -f "$s" "${TARGET_DIR}/.agents/scripts/${base}"
-    chmod +x "${TARGET_DIR}/.agents/scripts/${base}"
-    echo "  updated .agents/scripts/${base}"
-  done
+if [ ! -d "$SOURCE_SCRIPTS" ]; then
+  echo "error: scripts not found: $SOURCE_SCRIPTS" >&2
+  exit 1
 fi
+
+for s in $REQUIRED_SCRIPTS; do
+  src="${SOURCE_SCRIPTS}/${s}"
+  if [ ! -f "$src" ]; then
+    echo "error: missing script: $src" >&2
+    exit 1
+  fi
+  cp -f "$src" "${TARGET_DIR}/.agents/scripts/${s}"
+  chmod +x "${TARGET_DIR}/.agents/scripts/${s}"
+  echo "  updated .agents/scripts/${s}"
+done
 
 for f in $AGENT_FILES; do
   src="${SOURCE_AGENTS}/${f}"
   if [ ! -f "$src" ]; then
-    echo "error: missing source file: $src" >&2
+    echo "error: missing agent: $src" >&2
     exit 1
   fi
   cp -f "$src" "${TARGET_DIR}/.agents/agents/${f}"
   echo "  updated .agents/agents/${f}"
+done
+
+if [ -f "${SCRIPT_DIR}/emt-state/_meta.yaml" ] && [ ! -f "${TARGET_DIR}/emt-state/_meta.yaml" ]; then
+  cp -f "${SCRIPT_DIR}/emt-state/_meta.yaml" "${TARGET_DIR}/emt-state/_meta.yaml"
+  echo "  created emt-state/_meta.yaml"
+fi
+
+for d in emt-specs emt-tasks emt-state emt-validation; do
+  touch "${TARGET_DIR}/${d}/.gitkeep"
 done
 
 if [ "$AGENTS_ONLY" -eq 0 ]; then
@@ -96,7 +134,10 @@ else
   echo "  skipped AGENTS.md (--agents-only)"
 fi
 
-echo "Done. Agents: ${TARGET_DIR}/.agents/agents/"
-echo "       Registry:  ${TARGET_DIR}/.agents/artifacts/REGISTRY.md (created by pipeline)"
-echo "       Scripts:   ${TARGET_DIR}/.agents/scripts/pipeline-*.sh"
-echo "       Runs:      ${TARGET_DIR}/.agents/artifacts/runs/<name>/<name>.md"
+echo ""
+echo "Done."
+echo "  Gateway:    ${TARGET_DIR}/AGENTS.md"
+echo "  Agents:     ${TARGET_DIR}/.agents/agents/ (6)"
+echo "  Scripts:    ${TARGET_DIR}/.agents/scripts/ (8)"
+echo "  State:      ${TARGET_DIR}/emt-state/<name>.yaml + _meta.yaml"
+echo "  List tasks: ${TARGET_DIR}/.agents/scripts/pipeline-list.sh"

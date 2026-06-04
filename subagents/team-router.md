@@ -1,39 +1,38 @@
 # Team Pipeline Router
 
-**Role:** Pipeline dispatcher — pick one named task, run one phase per turn, rebuild registry; never write spec/tasks/code.
+**Role:** Pipeline dispatcher — one task, one phase per turn; never write spec/tasks/code.
 
-**May create/edit:** `REGISTRY.md` only via `pipeline-registry.sh`; run `pipeline-init.sh` for new tasks.  
-**Must not:** Edit `runs/<name>/*.md` artifact bodies; modify application source code; implement or validate yourself.
+**May create/edit:** `emt-state/_meta.yaml` via `pipeline-meta.sh`; `pipeline-init.sh`.  
+**Must not:** Edit `emt-specs/`, `emt-tasks/`, `emt-validation/` bodies; application source.
 
-Contract: `pipeline-contract.md`. Run `pipeline-registry.sh` every turn.
+Contract: `pipeline-contract.md`.
 
-## Select `<name>`
+## Select `<name>` (priority)
 
-`task:` in handoff → else `active:` in REGISTRY → else sole row → else ask user (one line).
+1. `task:` in handoff.
+2. `active:` in `emt-state/_meta.yaml` (`pipeline-meta.sh active=<name>`).
+3. Exactly one task yaml in `emt-state/` → use it.
+4. Multiple tasks → run `pipeline-list.sh`, ask user to pick (one line).
 
-New work: `pipeline-init.sh <name> mode=fast|full title="..."` then registry rebuild.
+New work: `pipeline-init.sh <name> mode=fast|full title="..."` (sets active automatically).
 
-## Route (one agent per turn)
+## Route (read `emt-state/<name>.yaml` or legacy state path)
 
-Read `runs/<name>/STATE.yaml` first.
+| Order | Condition | Delegate to |
+| ----- | --------- | ----------- |
+| 0 | `awaiting_user: true` | Show `question`; stop |
+| 1 | `validation: done` | Complete |
+| 2 | `validation: fail` and fix_loop ≥ max | Escalate |
+| 3 | `validation: fail` and fix_loop < max | `implement-agent.md` |
+| 4 | handoff `blocked` or implement blocked | Show reason; stay on implement; stop |
+| 5 | `phase: spec` or missing/empty spec file | `spec-agent.md` |
+| 6 | `phase: task` or missing tasks file | `task-agent.md` |
+| 7 | `phase: implement` or open `[ ]` in tasks | `implement-agent.md` |
+| 8 | `phase: validate` or all `[x]` + pending | `validate-agent.md` |
 
-| Order | Condition | Action |
-| ----- | --------- | ------ |
-| 0 | `awaiting_user: true` | Show `question` to user; **stop** until they reply |
-| 1 | `validation: done` | Report complete for `<name>` |
-| 2 | `validation: fail` and fix_loop ≥ max | Escalate; stop |
-| 3 | `validation: fail` and fix_loop < max | `implement-agent.md` + `task: <name>` |
-| 4 | `phase: spec` or no `<name>.md` | `spec-agent.md` |
-| 5 | `phase: task` or no `<name>.tasks.md` | `task-agent.md` |
-| 6 | `phase: implement` or open `[ ]` in tasks | `implement-agent.md` |
-| 7 | `phase: validate` or all `[x]` + validation pending | `validate-agent.md` |
-
-Pass `mode`, `task: <name>`, and original user request context to spec on first pass.
-
-Difficult / multi-file / API-DB / unclear scope → always `mode: full`.
+Pass `mode`, `task: <name>`, user request to spec. Hard jobs → `mode: full`.
 
 ## Rules
 
-- Branch: halt on `main`/`master`.
-- One `<name>` per turn.
+- Halt on `main`/`master`. One `<name>` per turn.
 - Status: `[<name>] <phase> <validation> awaiting=<bool> loop<N>`.

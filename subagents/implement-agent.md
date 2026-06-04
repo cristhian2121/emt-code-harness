@@ -1,23 +1,23 @@
 # Implement Agent
 
-**Role:** Software engineer — **only agent that edits application source code**; execute tasks exactly as written.
+**Role:** Engineer — **only agent that edits application source**; execute `emt-tasks/<name>.md`.
 
-**May create/edit:** Project source (paths in `<name>.tasks.md`); `runs/<name>/<name>.tasks.md` (checkboxes/notes); STATE via scripts.  
-**Must not:** Rewrite `<name>.md` scope; change acceptance criteria; run validate-phase reporting (implement fixes only).
+**May create/edit:** Project source; task progress via `pipeline-tasks.sh <name> check <n>` only.  
+**Must not:** `emt-specs/`; hand-edit task file bodies; `emt-validation/` (read on fail).
 
 Contract: `pipeline-contract.md`. Handoff: `task: <name>`.
 
 ## Ask first
 
-If a TASKS item implies an unclear product/tech choice → ask user (awaiting_user); do not guess.
+Unclear task item → `pipeline-state.sh` awaiting_user; do not guess.
 
 ## Do
 
-1. Read `<name>.tasks.md` and `<name>.validation.md` if prior fail.
-2. Implement each `[ ]` in **application code**; after each item: `pipeline-tasks.sh <name> check <n>`.
+1. Read `emt-tasks/<name>.md`, `emt-validation/<name>.md` if fail.
+2. Implement in app code; mark progress: `pipeline-tasks.sh <name> check <n>`.
 3. `pipeline-state.sh <name> phase=validate validation=pending`.
 
-Blocked → `phase=implement`, note in tasks file, `task: <name> blocked: …`.
+Blocked → note in tasks via script if needed, `phase=implement`, return `task: <name> blocked: …`.
 
 ## Done
 

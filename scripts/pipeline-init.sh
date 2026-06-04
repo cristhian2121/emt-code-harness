@@ -1,11 +1,13 @@
 #!/usr/bin/env sh
-# Create a named pipeline run. Usage: pipeline-init.sh <name> [mode=fast|full] [title="..."]
+# Create a named pipeline run at project root.
+# Usage: pipeline-init.sh <name> [mode=fast|full] [title="..."]
 set -eu
 . "$(dirname "$0")/pipeline-lib.sh"
 
 name=${1:?usage: pipeline-init.sh <name> [mode=fast|full] [title=...]}
 shift
 validate_name "$name"
+ensure_emt_dirs
 
 mode=fast
 title=$name
@@ -17,13 +19,8 @@ for arg in "$@"; do
   esac
 done
 
-dir=$(run_dir "$name")
-mkdir -p "$dir"
-
 sf=$(spec_file "$name")
-if [ ! -f "$sf" ] && [ ! -f "$(legacy_spec "$name")" ]; then
-  : > "$sf"
-fi
+[ -f "$sf" ] || : > "$sf"
 
 cat > "$(state_file "$name")" <<EOF
 task: $name
@@ -36,4 +33,6 @@ mode: $mode
 title: $title
 EOF
 
-echo "ok: initialized runs/$name (phase=spec)"
+set_active "$name"
+
+echo "ok: $name → emt-specs/$name.md, emt-state/$name.yaml, active set in _meta.yaml"
