@@ -10,6 +10,7 @@ Contract: `pipeline-contract.md`. Handoff: `task: <name>`, `mode`, user request.
 ## Ask first
 
 Ambiguous → `pipeline-state.sh` awaiting_user → `task: <name> awaiting_user`.
+Request especidfication → if the request is no clear or give a lot of ways request for clarifications adn keep the user in good code practices.
 
 ## Do
 

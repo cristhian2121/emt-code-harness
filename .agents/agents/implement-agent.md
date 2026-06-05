@@ -22,3 +22,7 @@ Blocked → note in tasks via script if needed, `phase=implement`, return `task:
 ## Done
 
 All items checked; STATE `phase: validate`. Return `task: <name> done`.
+
+## Rule
+
+1. in your first interacion give the user here are its emt-specs/[spect_name].md and emp-task/[task_task] and ask the user to start to implement if the user accept then start on another hand the user can request changes to the tasks file.
