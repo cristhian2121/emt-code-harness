@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Install emt-code-harness into a target project (macOS, Linux, Git Bash / WSL on Windows).
+# Install emt-code-harness into a target project (macOS, Linux, Bash / WSL on Windows).
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
